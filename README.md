@@ -57,3 +57,26 @@ assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 59), [])
 
 assert.deepStrictEqual(await kv.getByIndex('byOldAge', 17), [])
 ```
+
+## Concurrency Handling
+
+Internally, `KeyvSecondary` uses a `p-queue` with a concurrency limit of 1 to ensure that operations such as `set` and `delete` are processed in a serialized manner. This avoids race conditions when multiple asynchronous operations are performed on the same instance.
+
+If you want to provide your own concurrency control mechanism, you can use the `options.locker` parameter:
+
+```typescript
+const customLocker = <T>(cb: () => T): T => {
+  // Custom concurrency logic
+  return cb()
+}
+
+const kv = new KeyvSecondary<Person, Indexes>(
+  {}, // Keyv options
+  {
+    locker: customLocker, // Pass your custom locker function
+    // ... indexes
+  }
+)
+```
+
+By default, if no custom `locker` is provided, the internal `p-queue` will be used.
