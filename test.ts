@@ -4,24 +4,25 @@ import assert from 'node:assert'
 
 test('should construct KeyvSecondary', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter() {
-          return true
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter() {
-          return true
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -43,24 +44,25 @@ test('should construct KeyvSecondary', async () => {
 
 test('should construct KeyvSecondary with multiple values for same secondary index', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter() {
-          return true
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter() {
-          return true
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -84,24 +86,25 @@ test('should construct KeyvSecondary with multiple values for same secondary ind
 
 test('should construct KeyvSecondary with filtered secondary index', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter({ age }) {
-          return age > 30
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter({ age }) {
+            return age > 30
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter({ lastName }) {
-          return lastName.startsWith('L')
+        {
+          field: 'lastName',
+          filter({ lastName }) {
+            return lastName.startsWith('L')
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -121,24 +124,25 @@ test('should construct KeyvSecondary with filtered secondary index', async () =>
 
 test('should properly set', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter() {
-          return true
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter() {
-          return true
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -179,24 +183,25 @@ test('should properly set', async () => {
 
 test('should properly del', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter() {
-          return true
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter() {
-          return true
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -234,24 +239,25 @@ test('should properly del', async () => {
 
 test('should properly get by index', async () => {
   const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
-    void 0,
-    void 0,
-    [
-      {
-        field: 'age',
-        filter() {
-          return true
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
         },
-        name: 'byAge',
-      },
-      {
-        field: 'lastName',
-        filter() {
-          return true
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
         },
-        name: 'byLastName',
-      },
-    ]
+      ],
+    }
   )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
@@ -281,22 +287,27 @@ test('multiple indexes for same field', async () => {
   type Person = { age: number; firstName: string; lastName: string }
   type Indexes = 'byYoungAge' | 'byOldAge'
 
-  const kv = new KeyvSecondary<Person, Indexes>(void 0, void 0, [
+  const kv = new KeyvSecondary<Person, Indexes>(
+    {},
     {
-      field: 'age',
-      filter({ age }) {
-        return age >= 40
-      },
-      name: 'byOldAge',
-    },
-    {
-      field: 'age',
-      filter({ age }) {
-        return age < 40
-      },
-      name: 'byYoungAge',
-    },
-  ])
+      indexes: [
+        {
+          field: 'age',
+          filter({ age }) {
+            return age >= 40
+          },
+          name: 'byOldAge',
+        },
+        {
+          field: 'age',
+          filter({ age }) {
+            return age < 40
+          },
+          name: 'byYoungAge',
+        },
+      ],
+    }
+  )
 
   await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
   await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
@@ -319,4 +330,93 @@ test('multiple indexes for same field', async () => {
   assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 17), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
   assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 59), [])
   assert.deepStrictEqual(await kv.getByIndex('byOldAge', 17), [])
+})
+
+test('should construct KeyvSecondary correctly with concurrency', async () => {
+  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '2', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+    { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
+    { key: '4', value: { age: 59, firstName: 'Ibragim', lastName: 'Lukov' } },
+  ])
+
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+    ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
+    ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
+    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
+    ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
+    ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
+  ])
+})
+
+test('should not construct KeyvSecondary correctly with concurrency without locker', async () => {
+  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
+        },
+      ],
+      locker: cb => cb(), // identity fn, no mutex logic
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '2', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+    { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
+    { key: '4', value: { age: 59, firstName: 'Ibragim', lastName: 'Lukov' } },
+  ])
+
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byAge:59', '{"value":["4"]}'], // only last id
+    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
+    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["4"]}'], // only last id
+    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+    ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
+    ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
+    ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
+  ])
 })
