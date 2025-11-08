@@ -2,7 +2,7 @@
 
 ![NPM Version](https://img.shields.io/npm/v/keyv-secondary)
 
-Keyv with secondary indexes
+[Keyv](https://keyv.org) with secondary indexes
 
 ## Example
 
