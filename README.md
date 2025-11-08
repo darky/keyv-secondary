@@ -27,7 +27,7 @@ const kv = new KeyvSecondary<Person, Indexes>(
         filter: ({ age }) => age < 40,
         name: 'byYoungAge',
       },
-    ]
+    ],
   }
 )
 
@@ -65,7 +65,7 @@ Internally, `KeyvSecondary` uses a `p-queue` with a concurrency limit of 1 to en
 If you want to provide your own concurrency control mechanism, you can use the `options.locker` parameter:
 
 ```typescript
-const customLocker = <T>(cb: () => T): T => {
+const customLocker = async <T>(cb: () => T): T => {
   // Custom concurrency logic
   return cb()
 }

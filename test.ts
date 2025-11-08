@@ -396,7 +396,7 @@ test('should not construct KeyvSecondary correctly with concurrency without lock
           name: 'byLastName',
         },
       ],
-      locker: cb => cb(), // identity fn, no mutex logic
+      locker: async cb => cb(), // identity fn, no mutex logic
     }
   )
 
