@@ -14,20 +14,21 @@ type Person = { age: number; firstName: string; lastName: string }
 type Indexes = 'byYoungAge' | 'byOldAge'
 
 const kv = new KeyvSecondary<Person, Indexes>(
-  void 0, // optional adapter
-  void 0, // optional settings
-  [
-    {
-      field: 'age',
-      filter: ({ age }) => age >= 40,
-      name: 'byOldAge',
-    },
-    {
-      field: 'age',
-      filter: ({ age }) => age < 40,
-      name: 'byYoungAge',
-    },
-  ]
+  {}, // Keyv options
+  {
+    indexes: [
+      {
+        field: 'age',
+        filter: ({ age }) => age >= 40,
+        name: 'byOldAge',
+      },
+      {
+        field: 'age',
+        filter: ({ age }) => age < 40,
+        name: 'byYoungAge',
+      },
+    ]
+  }
 )
 
 await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
