@@ -1,42 +1,41 @@
-# indexable-map
+# Keyv-secondary
 
-![NPM Version](https://img.shields.io/npm/v/indexable-map)
+![NPM Version](https://img.shields.io/npm/v/keyv-secondary)
 
-Built-in JavaScript Map with secondary indexes
+Keyv with secondary indexes
 
 ## Example
 
 ```typescript
 import assert from 'node:assert'
-import { IndexableMap } from 'indexable-map'
+import { KeyvSecondary } from 'keyv-secondary'
 
 type Person = { age: number; firstName: string; lastName: string }
 type Indexes = 'byYoungAge' | 'byOldAge'
 
-const im = new IndexableMap<number, Person, Indexes>(
+const kv = new KeyvSecondary<Person, Indexes>(
+  void 0, // optional adapter
+  void 0, // optional settings
   [
-    [1, { age: 30, firstName: 'Galina', lastName: 'Ivanova' }],
-    [2, { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' }],
-    [3, { age: 17, firstName: 'Stepan', lastName: 'Lukov' }],
-    [4, { age: 59, firstName: 'Ibragim', lastName: 'Lukov' }],
-  ],
-  {
-    indexes: [
-      {
-        field: 'age',
-        filter: ({ age }) => age >= 40,
-        name: 'byOldAge',
-      },
-      {
-        field: 'age',
-        filter: ({ age }) => age < 40,
-        name: 'byYoungAge',
-      },
-    ],
-  }
+    {
+      field: 'age',
+      filter: ({ age }) => age >= 40,
+      name: 'byOldAge',
+    },
+    {
+      field: 'age',
+      filter: ({ age }) => age < 40,
+      name: 'byYoungAge',
+    },
+  ]
 )
 
-assert.deepStrictEqual(im.getByIndex('byOldAge', 59), [
+await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+await kv.set('4', { age: 59, firstName: 'Ibragim', lastName: 'Lukov' })
+
+assert.deepStrictEqual(await kv.getByIndex('byOldAge', 59), [
   {
     age: 59,
     firstName: 'Zinaida',
@@ -49,11 +48,11 @@ assert.deepStrictEqual(im.getByIndex('byOldAge', 59), [
   },
 ])
 
-assert.deepStrictEqual(im.getByIndex('byYoungAge', 30), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 30), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
 
-assert.deepStrictEqual(im.getByIndex('byYoungAge', 17), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
+assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 17), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
 
-assert.deepStrictEqual(im.getByIndex('byYoungAge', 59), [])
+assert.deepStrictEqual(await kv.getByIndex('byYoungAge', 59), [])
 
-assert.deepStrictEqual(im.getByIndex('byOldAge', 17), [])
+assert.deepStrictEqual(await kv.getByIndex('byOldAge', 17), [])
 ```
