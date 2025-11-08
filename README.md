@@ -49,11 +49,9 @@ assert.deepStrictEqual(im.getByIndex('byOldAge', 59), [
   },
 ])
 
-assert.deepStrictEqual(im.getByIndex('byYoungAge', 30),
-  [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+assert.deepStrictEqual(im.getByIndex('byYoungAge', 30), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
 
-assert.deepStrictEqual(im.getByIndex('byYoungAge', 17),
-  [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
+assert.deepStrictEqual(im.getByIndex('byYoungAge', 17), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
 
 assert.deepStrictEqual(im.getByIndex('byYoungAge', 59), [])
 

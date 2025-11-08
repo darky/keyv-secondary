@@ -1,124 +1,76 @@
+import { Keyv, type KeyvOptions, type KeyvStoreAdapter } from 'keyv'
+
 const objKeys = Object.keys.bind(Object) as <K extends string>(obj: {
   [key in K]: unknown
 }) => K[]
 
-export class IndexableMap<K, V, I extends string> extends Map<K, V> {
-  private _indexes = {} as {
-    [indexName in I]: Map<V[keyof V], Set<K>>
-  }
+export class KeyvSecondary<V, I extends string> extends Keyv<V> {
   private _indexFields = {} as {
     [indexName in I]: keyof V
   }
   private _indexFilters = {} as {
     [indexName in I]: (val: V) => boolean
   }
-  private _indexesEnabled = true
 
   constructor(
-    entries: readonly (readonly [K, V])[] = [],
-    {
-      indexes = [],
-      indexesEnabled = true,
-    }: {
-      indexes?: { field: keyof V; filter: (val: V) => boolean; name: I }[]
-      indexesEnabled?: boolean
-    } = { indexes: [], indexesEnabled: true }
+    store?: KeyvStoreAdapter | KeyvOptions | Map<any, any>,
+    options?: Omit<KeyvOptions, 'store'>,
+    indexes: { field: keyof V; filter: (val: V) => boolean; name: I }[] = []
   ) {
-    super(entries satisfies ConstructorParameters<MapConstructor>[0])
+    super(store, options)
     for (const { field, filter, name } of indexes) {
-      this._indexes[name] = new Map()
       this._indexFields[name] = field
       this._indexFilters[name] = filter
     }
-    if (indexesEnabled === false) {
-      this._indexesEnabled = false
-    }
-    if (this._indexesEnabled) {
-      this.refreshIndexes()
-    }
   }
 
-  getByIndex<K extends keyof V>(name: I, value: V[K]) {
-    const resp: V[] = []
-    for (const key of this._indexes[name]?.get(value) ?? new Set()) {
-      resp.push(this.get(key)!)
+  async getByIndex<K extends keyof V>(name: I, value: V[K]) {
+    const keys = await this.get<string[]>(`$secondary-index:${name}:${value}`)
+    if (!keys) {
+      return []
     }
-    return resp
+    return this.getMany(keys)
   }
 
-  refreshIndexes() {
-    for (const indexedField of objKeys(this._indexes)) {
-      this._indexes[indexedField].clear()
-    }
-    for (const [key, value] of this.entries()) {
-      for (const indexName of objKeys(this._indexes)) {
-        if (this._indexFilters[indexName](value)) {
-          this._indexes[indexName].set(
-            value[this._indexFields[indexName]],
-            (this._indexes[indexName].get(value[this._indexFields[indexName]]) ?? new Set()).add(key)
-          )
-        }
-      }
-    }
-    return this
-  }
-
-  enableIndexes() {
-    this._indexesEnabled = true
-    return this
-  }
-
-  disableIndexes() {
-    this._indexesEnabled = false
-    return this
-  }
-
-  vacuum() {
-    for (const indexedField of objKeys(this._indexes)) {
-      for (const [fieldValue, set] of this._indexes[indexedField].entries()) {
-        if (!set.size) {
-          this._indexes[indexedField].delete(fieldValue)
-        }
-      }
-    }
-  }
-
-  override set(key: K, value: V) {
-    if (this._indexesEnabled) {
-      const oldVal = this.get(key)
-      for (const indexName of objKeys(this._indexes)) {
-        if (oldVal != null) {
-          this._indexes[indexName].get(oldVal[this._indexFields[indexName]])?.delete(key)
-        }
-        if (this._indexFilters[indexName](value)) {
-          this._indexes[indexName].set(
-            value[this._indexFields[indexName]],
-            (this._indexes[indexName].get(value[this._indexFields[indexName]]) ?? new Set()).add(key)
-          )
-        }
-      }
-    }
-    return super.set(key, value)
-  }
-
-  override delete(key: K) {
-    if (this._indexesEnabled) {
-      const oldVal = this.get(key)
+  override async set<Value>(key: string, value: Value, ttl?: number) {
+    const oldVal = await this.get(key)
+    for (const indexName of objKeys(this._indexFields)) {
       if (oldVal != null) {
-        for (const indexName of objKeys(this._indexes)) {
-          this._indexes[indexName].get(oldVal[this._indexFields[indexName]])?.delete(key)
+        const keys = await this.get<string[]>(`$secondary-index:${indexName}:${oldVal[this._indexFields[indexName]]}`)
+        if (keys) {
+          await super.set(
+            `$secondary-index:${indexName}:${oldVal[this._indexFields[indexName]]}`,
+            keys.filter(k => k !== key) as V
+          )
         }
+      }
+      if (this._indexFilters[indexName](value as unknown as V)) {
+        const keys = await this.get<string[]>(
+          `$secondary-index:${indexName}:${(value as unknown as V)[this._indexFields[indexName]]}`
+        )
+        await super.set(
+          `$secondary-index:${indexName}:${(value as unknown as V)[this._indexFields[indexName]]}`,
+          Array.from(new Set(keys ?? []).add(key)) as V
+        )
+      }
+    }
+    return super.set(key, value, ttl)
+  }
+
+  override async delete(key: string) {
+    const oldVal = await this.get(key)
+    if (oldVal != null) {
+      for (const indexName of objKeys(this._indexFields)) {
+        const keys = await this.get<string[]>(`$secondary-index:${indexName}:${oldVal[this._indexFields[indexName]]}`)
+        if (!keys) {
+          continue
+        }
+        await super.set(
+          `$secondary-index:${indexName}:${oldVal[this._indexFields[indexName]]}`,
+          keys.filter(k => k !== key) as V
+        )
       }
     }
     return super.delete(key)
-  }
-
-  override clear() {
-    if (this._indexesEnabled) {
-      for (const indexedField of objKeys(this._indexes)) {
-        this._indexes[indexedField].clear()
-      }
-    }
-    return super.clear()
   }
 }

@@ -1,9 +1,9 @@
 {
-  "name": "indexable-map",
-  "version": "0.10.0",
-  "description": "Built-in JavaScript Map with secondary indexes",
+  "name": "keyv-secondary",
+  "version": "0.0.0",
+  "description": "Keyv with secondary indexes",
   "keywords": [
-    "map",
+    "keyv",
     "index",
     "secondary"
   ],
@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:darky/indexable-map.git"
+    "url": "git@github.com:darky/keyv-secondary.git"
   },
   "scripts": {
     "build": "rm -rf dist && tsc",
@@ -25,7 +25,8 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@types/node": "^22.15.30",
-    "typescript": "^5.8.3"
+    "@types/node": "^24.10.0",
+    "keyv": "^5.5.3",
+    "typescript": "^5.9.3"
   }
 }
