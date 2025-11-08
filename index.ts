@@ -32,22 +32,17 @@ export class KeyvSecondary<V, I extends string> extends Keyv<V> {
   override async set<Value>(key: string, value: Value, ttl?: number) {
     return this.locker(async () => {
       const oldVal = await this.get(key)
+      const newVal = value as unknown as V
       for (const { field, filter, name } of this.indexes) {
         if (oldVal != null) {
-          const keys = await this.get<string[]>(`$secondary-index:${name}:${oldVal[field]}`)
-          if (keys) {
-            await super.set(`$secondary-index:${name}:${oldVal[field]}`, keys.filter(k => k !== key) as V)
-          }
+          await this.deleteFromIndex(key, name, oldVal[field] as V)
         }
-        if (filter(value as unknown as V)) {
-          const keys = await this.get<string[]>(`$secondary-index:${name}:${(value as unknown as V)[field]}`)
-          await super.set(
-            `$secondary-index:${name}:${(value as unknown as V)[field]}`,
-            Array.from(new Set(keys ?? []).add(key)) as V
-          )
+        if (filter(newVal)) {
+          const keys = await this.get<string[]>(`$secondary-index:${name}:${newVal[field]}`)
+          await super.set(`$secondary-index:${name}:${newVal[field]}`, [...new Set(keys ?? []).add(key)])
         }
       }
-      return await super.set(key, value, ttl)
+      return await super.set(key, newVal, ttl)
     })
   }
 
@@ -56,15 +51,21 @@ export class KeyvSecondary<V, I extends string> extends Keyv<V> {
       const oldVal = await this.get(key)
       if (oldVal != null) {
         for (const { name, field } of this.indexes) {
-          const keys = await this.get<string[]>(`$secondary-index:${name}:${oldVal[field]}`)
-          if (!keys) {
-            continue
-          }
-          await super.set(`$secondary-index:${name}:${oldVal[field]}`, keys.filter(k => k !== key) as V)
+          await this.deleteFromIndex(key, name, oldVal[field] as V)
         }
       }
       return await super.delete(key)
     })
+  }
+
+  private async deleteFromIndex(key: string, name: string, value: V) {
+    const keys = await this.get<string[]>(`$secondary-index:${name}:${value}`)
+    if (keys) {
+      await super.set(
+        `$secondary-index:${name}:${value}`,
+        keys.filter(k => k !== key)
+      )
+    }
   }
 
   private locker<T>(cb: () => T) {
