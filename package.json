@@ -25,11 +25,11 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "keyv": "^5.5.3",
+    "keyv": "^5.5.4",
     "p-queue": "^9.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0",
+    "@types/node": "^24.10.1",
     "typescript": "^5.9.3"
   }
 }
