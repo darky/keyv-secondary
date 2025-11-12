@@ -3,7 +3,7 @@ import { KeyvSecondary } from './index.ts'
 import assert from 'node:assert'
 
 test('should construct KeyvSecondary', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -43,7 +43,7 @@ test('should construct KeyvSecondary', async () => {
 })
 
 test('should construct KeyvSecondary with multiple values for same secondary index', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -85,7 +85,7 @@ test('should construct KeyvSecondary with multiple values for same secondary ind
 })
 
 test('should construct KeyvSecondary with filtered secondary index', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -123,7 +123,7 @@ test('should construct KeyvSecondary with filtered secondary index', async () =>
 })
 
 test('should properly set', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -182,7 +182,7 @@ test('should properly set', async () => {
 })
 
 test('should properly del', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -238,7 +238,7 @@ test('should properly del', async () => {
 })
 
 test('should properly get by index', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -287,7 +287,7 @@ test('multiple indexes for same field', async () => {
   type Person = { age: number; firstName: string; lastName: string }
   type Indexes = 'byYoungAge' | 'byOldAge'
 
-  const kv = new KeyvSecondary<Person, Indexes>(
+  const kv = new KeyvSecondary<string, Person, Indexes>(
     {},
     {
       indexes: [
@@ -333,7 +333,7 @@ test('multiple indexes for same field', async () => {
 })
 
 test('should construct KeyvSecondary correctly with concurrency', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -377,7 +377,7 @@ test('should construct KeyvSecondary correctly with concurrency', async () => {
 })
 
 test('should not construct KeyvSecondary correctly with concurrency without locker', async () => {
-  const kv = new KeyvSecondary<{ age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
       indexes: [
@@ -419,4 +419,62 @@ test('should not construct KeyvSecondary correctly with concurrency without lock
     ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
     ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
   ])
+})
+
+test('TypeScript generics', async () => {
+  type Id = number & { __brand: 'id' }
+  const kv = new KeyvSecondary<
+    Id,
+    { age: number; firstName: string; id: Id; lastName: string },
+    'byAge' | 'byLastName'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
+        },
+      ],
+      locker: async cb => cb(), // identity fn, no mutex logic
+    }
+  )
+
+  await kv.setMany([
+    { key: 1 as Id, value: { age: 30, firstName: 'Galina', id: 1 as Id, lastName: 'Ivanova' } },
+    { key: 2 as Id, value: { age: 59, firstName: 'Zinaida', id: 2 as Id, lastName: 'Petrovna' } },
+    // @ts-expect-error
+    { key: 3, value: { age: 17, firstName: 'Stepan', id: 3, lastName: 'Lukov' } },
+    { key: 4 as Id, value: { age: 59, firstName: 'Ibragim', id: 4 as Id, lastName: 'Lukov' } },
+  ])
+
+  await kv.set(5 as Id, { age: 35, firstName: 'Semen', id: 5 as Id, lastName: 'Zhukov' })
+  // @ts-expect-error
+  await kv.set(6, { age: 12, firstName: 'Petya', id: 6, lastName: 'Kuznetsov' })
+
+  // @ts-expect-error
+  await kv.delete(6)
+  await kv.delete(6 as Id)
+
+  await kv.deleteMany([5, 6] as Id[])
+  // @ts-expect-error
+  await kv.deleteMany([5, 6])
+
+  await kv.get(1 as Id)
+  // @ts-expect-error
+  await kv.get(1)
+
+  // @ts-expect-error
+  await kv.getMany([1, 2, 3])
+  await kv.getMany([1, 2, 3] as Id[])
 })

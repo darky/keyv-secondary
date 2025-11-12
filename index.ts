@@ -1,7 +1,7 @@
 import { Keyv, type KeyvOptions } from 'keyv'
 import PQueue from 'p-queue'
 
-export class KeyvSecondary<V, I extends string> extends Keyv<V> {
+export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   private pQueue = new PQueue({ concurrency: 1 })
   private indexes: { field: keyof V; filter: (val: V) => boolean; name: I }[] = []
 
@@ -21,15 +21,43 @@ export class KeyvSecondary<V, I extends string> extends Keyv<V> {
     }
   }
 
-  async getByIndex<K extends keyof V>(name: I, value: V[K]) {
-    const keys = await this.get<string[]>(`$secondary-index:${name}:${value}`)
+  async getByIndex<Key extends keyof V>(name: I, value: V[Key]) {
+    const keys = (await this.get(`$secondary-index:${name}:${value}` as K)) as K[] | void
     if (!keys) {
       return []
     }
     return this.getMany(keys)
   }
 
-  override async set<Value>(key: string, value: Value, ttl?: number) {
+  // @ts-ignore
+  override get(key: K) {
+    return super.get(String(key))
+  }
+
+  // @ts-ignore
+  override getMany(keys: K[]) {
+    return super.getMany(keys.map(k => String(k)))
+  }
+
+  // @ts-ignore
+  override setMany(
+    entities: {
+      key: K
+      value: V
+      ttl?: number
+    }[]
+  ) {
+    return super.setMany(
+      entities.map(({ key, value, ttl }) => ({
+        key: String(key),
+        value,
+        ttl: ttl as number,
+      }))
+    )
+  }
+
+  // @ts-ignore
+  override async set(key: K, value: V, ttl?: number) {
     return this.locker(async () => {
       const oldVal = await this.get(key)
       const newVal = value as unknown as V
@@ -38,15 +66,16 @@ export class KeyvSecondary<V, I extends string> extends Keyv<V> {
           await this.deleteFromIndex(key, name, oldVal[field] as V)
         }
         if (filter(newVal)) {
-          const keys = await this.get<string[]>(`$secondary-index:${name}:${newVal[field]}`)
+          const keys = (await this.get(`$secondary-index:${name}:${newVal[field]}` as K)) as K[] | void
           await super.set(`$secondary-index:${name}:${newVal[field]}`, [...new Set(keys ?? []).add(key)])
         }
       }
-      return await super.set(key, newVal, ttl)
+      return await super.set(String(key), newVal, ttl)
     })
   }
 
-  override async delete(key: string) {
+  // @ts-ignore
+  override async delete(key: K) {
     return this.locker(async () => {
       const oldVal = await this.get(key)
       if (oldVal != null) {
@@ -54,12 +83,17 @@ export class KeyvSecondary<V, I extends string> extends Keyv<V> {
           await this.deleteFromIndex(key, name, oldVal[field] as V)
         }
       }
-      return await super.delete(key)
+      return await super.delete(String(key))
     })
   }
 
-  private async deleteFromIndex(key: string, name: string, value: V) {
-    const keys = await this.get<string[]>(`$secondary-index:${name}:${value}`)
+  // @ts-ignore
+  override async deleteMany(keys: K[]) {
+    return super.deleteMany(keys.map(k => String(k)))
+  }
+
+  private async deleteFromIndex(key: K, name: string, value: V) {
+    const keys = (await this.get(`$secondary-index:${name}:${value}` as K)) as K[] | void
     if (keys) {
       await super.set(
         `$secondary-index:${name}:${value}`,
