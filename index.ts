@@ -94,7 +94,7 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       for (const { name, field } of this.indexes) {
         let i = 0
         for (const key of keys) {
-          if (oldsVals[i]) {
+          if (oldsVals[i] != null) {
             await this.deleteFromIndex(key, name, oldsVals[i]![field] as V)
           }
           i++
