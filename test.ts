@@ -478,3 +478,45 @@ test('TypeScript generics', async () => {
   await kv.getMany([1, 2, 3])
   await kv.getMany([1, 2, 3] as Id[])
 })
+
+test('should properly deleteMany', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+  await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+  await kv.set('4', { age: 59, firstName: 'Ibragim', lastName: 'Lukov' })
+
+  await kv.deleteMany(['1', '7', '3'])
+
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:30', '{"value":[]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":[]}'],
+    ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
+    ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
+    ['keyv:$secondary-index:byAge:17', '{"value":[]}'],
+    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["4"]}'],
+    ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
+  ])
+})

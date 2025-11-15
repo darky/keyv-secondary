@@ -89,7 +89,19 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
 
   // @ts-ignore
   override async deleteMany(keys: K[]) {
-    return super.deleteMany(keys.map(k => String(k)))
+    return this.locker(async () => {
+      const oldsVals = await this.getMany(keys)
+      for (const { name, field } of this.indexes) {
+        let i = 0
+        for (const key of keys) {
+          if (oldsVals[i]) {
+            await this.deleteFromIndex(key, name, oldsVals[i]![field] as V)
+          }
+          i++
+        }
+      }
+      return super.deleteMany(keys.map(k => String(k)))
+    })
   }
 
   private async deleteFromIndex(key: K, name: string, value: V) {
