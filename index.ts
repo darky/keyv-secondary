@@ -48,23 +48,6 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   }
 
   // @ts-ignore
-  override setMany(
-    entities: {
-      key: K
-      value: V
-      ttl?: number
-    }[]
-  ) {
-    return super.setMany(
-      entities.map(({ key, value, ttl }) => ({
-        key: String(key),
-        value,
-        ttl: ttl as number,
-      }))
-    )
-  }
-
-  // @ts-ignore
   override async set(key: K, value: V, ttl?: number) {
     return this.locker(async () => {
       const oldVal = await this.get(key)
@@ -79,6 +62,38 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
         }
       }
       return await super.set(String(key), newVal, ttl)
+    })
+  }
+
+  // @ts-ignore
+  override setMany(
+    entities: {
+      key: K
+      value: V
+      ttl?: number
+    }[]
+  ) {
+    return this.locker(async () => {
+      for (const { key, value } of entities) {
+        const oldVal = await this.get(key)
+        const newVal = value as unknown as V
+        for (const { field, filter, name } of this.indexes) {
+          if (oldVal != null) {
+            await this.deleteFromIndex(key, name, oldVal[field] as V)
+          }
+          if (filter(newVal)) {
+            const keys = (await this.get(`$secondary-index:${name}:${newVal[field]}` as K)) as K[] | void
+            await super.set(`$secondary-index:${name}:${newVal[field]}`, [...new Set(keys ?? []).add(key)])
+          }
+        }
+      }
+      return super.setMany(
+        entities.map(({ key, value, ttl }) => ({
+          key: String(key),
+          value,
+          ttl: ttl as number,
+        }))
+      )
     })
   }
 

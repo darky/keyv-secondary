@@ -332,7 +332,7 @@ test('multiple indexes for same field', async () => {
   assert.deepStrictEqual(await kv.getByIndex('byOldAge', 17), [])
 })
 
-test('should construct KeyvSecondary correctly with concurrency', async () => {
+test('should construct KeyvSecondary correctly with setMany', async () => {
   const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
@@ -365,18 +365,18 @@ test('should construct KeyvSecondary correctly with concurrency', async () => {
   assert.deepStrictEqual(Array.from(kv.store), [
     ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
     ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
-    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
     ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
     ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
-    ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
     ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
     ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
+    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+    ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
     ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
     ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
   ])
 })
 
-test('should not construct KeyvSecondary correctly with concurrency without locker', async () => {
+test('should construct KeyvSecondary correctly with setMany without locker', async () => {
   const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
     {},
     {
@@ -409,15 +409,70 @@ test('should not construct KeyvSecondary correctly with concurrency without lock
 
   assert.deepStrictEqual(Array.from(kv.store), [
     ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
-    ['keyv:$secondary-index:byAge:59', '{"value":["4"]}'], // only last id
-    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
     ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
     ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
-    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["4"]}'], // only last id
+    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
     ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
     ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
     ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
     ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
+  ])
+})
+
+test('should properly setMany', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge' | 'byLastName'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+        {
+          field: 'lastName',
+          filter() {
+            return true
+          },
+          name: 'byLastName',
+        },
+      ],
+      locker: async cb => cb(), // identity fn, no mutex logic
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '2', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+    { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
+    { key: '4', value: { age: 59, firstName: 'Ibragim', lastName: 'Lukov' } },
+  ])
+
+  await kv.setMany([
+    { key: '2', value: { age: 70, firstName: 'Ivan', lastName: 'Sidorov' } },
+    { key: '5', value: { age: 33, firstName: 'Dmitry', lastName: 'Nabiulin' } },
+  ])
+
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byAge:59', '{"value":["4"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":[]}'],
+    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
+    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+    ['keyv:2', '{"value":{"age":70,"firstName":"Ivan","lastName":"Sidorov"}}'],
+    ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
+    ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
+    ['keyv:$secondary-index:byAge:70', '{"value":["2"]}'],
+    ['keyv:$secondary-index:byLastName:Sidorov', '{"value":["2"]}'],
+    ['keyv:$secondary-index:byAge:33', '{"value":["5"]}'],
+    ['keyv:$secondary-index:byLastName:Nabiulin', '{"value":["5"]}'],
+    ['keyv:5', '{"value":{"age":33,"firstName":"Dmitry","lastName":"Nabiulin"}}'],
   ])
 })
 
