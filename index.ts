@@ -1,8 +1,10 @@
 import { Keyv, type KeyvOptions } from 'keyv'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import PQueue from 'p-queue'
 
 export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   private pQueue = new PQueue({ concurrency: 1 })
+  private lockerContext = new AsyncLocalStorage()
   private indexes: { field: keyof V; filter: (val: V) => boolean; name: I }[] = []
 
   constructor(
@@ -14,7 +16,13 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   ) {
     super(keyvOptions)
     if (options?.locker) {
-      this.locker = options.locker
+      this.locker = cb => {
+        const inLockContext = this.lockerContext.getStore()
+        if (inLockContext) {
+          return cb()
+        }
+        return options.locker!(cb)
+      }
     }
     if (options?.indexes) {
       this.indexes = options.indexes
@@ -115,6 +123,10 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   }
 
   private locker<T>(cb: () => T) {
-    return this.pQueue.add<T>(cb)
+    const inLockContext = this.lockerContext.getStore()
+    if (inLockContext) {
+      return cb()
+    }
+    return this.lockerContext.run(true, () => this.pQueue.add<T>(cb))
   }
 }
