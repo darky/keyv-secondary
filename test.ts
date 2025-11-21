@@ -532,6 +532,14 @@ test('TypeScript generics', async () => {
   // @ts-expect-error
   await kv.getMany([1, 2, 3])
   await kv.getMany([1, 2, 3] as Id[])
+
+  assert.strictEqual(await kv.has(1 as Id), true)
+  // @ts-expect-error
+  await kv.has(1)
+
+  // @ts-expect-error
+  assert.deepStrictEqual(await kv.hasMany([1, 2, 3, -1]), [true, true, true, false])
+  await kv.hasMany([1, 2, 3, -1] as Id[])
 })
 
 test('should properly deleteMany', async () => {

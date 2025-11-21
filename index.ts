@@ -48,6 +48,16 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   }
 
   // @ts-ignore
+  override has(key: K) {
+    return super.has(String(key))
+  }
+
+  // @ts-ignore
+  override hasMany(keys: K[]) {
+    return super.hasMany(keys.map(k => String(k)))
+  }
+
+  // @ts-ignore
   override async set(key: K, value: V, ttl?: number) {
     return this.locker(async () => {
       const oldVal = await this.get(key)
