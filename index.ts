@@ -29,7 +29,7 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
     }
   }
 
-  async getByIndex<Key extends keyof V>(name: I, value: unknown) {
+  async getByIndex(name: I, value: unknown) {
     const keys = (await this.get(`$secondary-index:${name}:${value}` as K)) as K[] | void
     if (!keys) {
       return []
