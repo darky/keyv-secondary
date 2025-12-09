@@ -583,3 +583,293 @@ test('should properly deleteMany', async () => {
     ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
   ])
 })
+
+test('should support map function in secondary index', async () => {
+  const kv = new KeyvSecondary<
+    string,
+    { age: number; firstName: string; lastName: string },
+    'byInitial' | 'byAgeGroup'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          // Index by first letter of firstName using map function
+          map: val => val.firstName[0],
+          filter: () => true,
+          name: 'byInitial',
+        },
+        {
+          // Index by age group using map function
+          map: val => (val.age >= 18 ? 'adult' : 'minor'),
+          filter: () => true,
+          name: 'byAgeGroup',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+  await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+  await kv.set('4', { age: 59, firstName: 'Ibragim', lastName: 'Lukov' })
+
+  // Test byInitial index
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'G'), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'Z'), [
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'S'), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
+
+  // Test byAgeGroup index
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'adult'), [
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+    { age: 59, firstName: 'Ibragim', lastName: 'Lukov' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'minor'), [
+    { age: 17, firstName: 'Stepan', lastName: 'Lukov' },
+  ])
+})
+
+test('should support map function with filtered indexes', async () => {
+  const kv = new KeyvSecondary<
+    string,
+    { age: number; firstName: string; lastName: string },
+    'byInitial' | 'byAgeGroup'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          // Index by first letter of firstName using map function, but only for names starting with 'G' or 'S'
+          map: val => val.firstName[0],
+          filter: val => val.firstName.startsWith('G') || val.firstName.startsWith('S'),
+          name: 'byInitial',
+        },
+        {
+          // Index by age group using map function, but only for adults
+          map: val => (val.age >= 18 ? 'adult' : 'minor'),
+          filter: val => val.age >= 18,
+          name: 'byAgeGroup',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+  await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+  await kv.set('4', { age: 59, firstName: 'Ibragim', lastName: 'Lukov' })
+
+  // Test filtered byInitial index
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'G'), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'S'), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
+  // Zinaida should not be in index since filter excludes her
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'Z'), [])
+
+  // Test filtered byAgeGroup index
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'adult'), [
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+    { age: 59, firstName: 'Ibragim', lastName: 'Lukov' },
+  ])
+  // Stepan should not be in index since age filter excludes him
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'minor'), [])
+})
+
+test('should support map with complex functions', async () => {
+  const kv = new KeyvSecondary<
+    string,
+    { age: number; firstName: string; lastName: string },
+    'byFullNameLength' | 'byNameParts'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          // Index by full name length
+          map: val => val.firstName.length + val.lastName.length,
+          filter: () => true,
+          name: 'byFullNameLength',
+        },
+        {
+          // Index by last name length
+          map: val => val.lastName.length,
+          filter: () => true,
+          name: 'byNameParts',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+  await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+
+  // Test byFullNameLength index
+  assert.deepStrictEqual(await kv.getByIndex('byFullNameLength', 13), [
+    // Galina Ivanova = 6 + 7
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byFullNameLength', 15), [
+    // Zinaida Petrovna = 7 + 8
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byFullNameLength', 11), [
+    // Stepan Lukov = 6 + 5
+    { age: 17, firstName: 'Stepan', lastName: 'Lukov' },
+  ])
+
+  // Test byNameParts index
+  assert.deepStrictEqual(await kv.getByIndex('byNameParts', 7), [
+    // Ivanova
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byNameParts', 8), [
+    // Petrovna
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byNameParts', 5), [
+    // Lukov
+    { age: 17, firstName: 'Stepan', lastName: 'Lukov' },
+  ])
+})
+
+test('should handle null/undefined values in map function', async () => {
+  const kv = new KeyvSecondary<
+    string,
+    { age: number; firstName: string; lastName: string; middleName?: string },
+    'byMiddleNameExists'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          // Index by whether middle name exists
+          map: val => val.middleName != null,
+          filter: () => true,
+          name: 'byMiddleNameExists',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 59, firstName: 'Zinaida', lastName: 'Petrovna', middleName: 'Alexeevna' })
+  await kv.set('3', { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+  await kv.set('4', { age: 59, firstName: 'Ibragim', lastName: 'Lukov', middleName: 'Ivanovich' })
+
+  // Test index with middle name
+  assert.deepStrictEqual(await kv.getByIndex('byMiddleNameExists', true), [
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna', middleName: 'Alexeevna' },
+    { age: 59, firstName: 'Ibragim', lastName: 'Lukov', middleName: 'Ivanovich' },
+  ])
+
+  // Test index without middle name
+  assert.deepStrictEqual(await kv.getByIndex('byMiddleNameExists', false), [
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+    { age: 17, firstName: 'Stepan', lastName: 'Lukov' },
+  ])
+})
+
+test('should work with setMany and map function', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byInitial'>(
+    {},
+    {
+      indexes: [
+        {
+          // Index by first letter of firstName using map function
+          map: val => val.firstName[0],
+          filter: () => true,
+          name: 'byInitial',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '2', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+    { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
+  ])
+
+  // Test that all entries are indexed correctly
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'G'), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'Z'), [
+    { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'S'), [{ age: 17, firstName: 'Stepan', lastName: 'Lukov' }])
+})
+
+test('should properly update with set when map function changes', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAgeGroup'>(
+    {},
+    {
+      indexes: [
+        {
+          // Index by age group
+          map: val => (val.age >= 18 ? 'adult' : 'minor'),
+          filter: () => true,
+          name: 'byAgeGroup',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  // Initially an adult
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'adult'), [
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+  ])
+
+  // Update to make it a minor
+  await kv.set('1', { age: 15, firstName: 'Galina', lastName: 'Ivanova' })
+  // Should no longer be in adult index
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'adult'), [])
+  // Should be in minor index
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'minor'), [
+    { age: 15, firstName: 'Galina', lastName: 'Ivanova' },
+  ])
+})
+
+test('should work with multiple indexes that use map function', async () => {
+  const kv = new KeyvSecondary<
+    string,
+    { age: number; firstName: string; lastName: string },
+    'byInitial' | 'byAgeGroup'
+  >(
+    {},
+    {
+      indexes: [
+        {
+          // Index by first letter of firstName using map function
+          map: val => val.firstName[0],
+          filter: () => true,
+          name: 'byInitial',
+        },
+        {
+          // Index by age group using map function
+          map: val => (val.age >= 18 ? 'adult' : 'minor'),
+          filter: () => true,
+          name: 'byAgeGroup',
+        },
+      ],
+    }
+  )
+
+  await kv.set('1', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  await kv.set('2', { age: 17, firstName: 'Zinaida', lastName: 'Petrovna' })
+
+  // Test both indexes
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'G'), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'adult'), [
+    { age: 30, firstName: 'Galina', lastName: 'Ivanova' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byInitial', 'Z'), [
+    { age: 17, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+  assert.deepStrictEqual(await kv.getByIndex('byAgeGroup', 'minor'), [
+    { age: 17, firstName: 'Zinaida', lastName: 'Petrovna' },
+  ])
+})
