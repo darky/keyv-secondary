@@ -4,7 +4,7 @@ import PQueue from 'p-queue'
 
 export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   private pQueue = new PQueue({ concurrency: 1 })
-  private lockerContext = new AsyncLocalStorage()
+  private lockerContext = new AsyncLocalStorage<true>()
   private indexes: { field?: keyof V; filter: (val: V) => boolean; map?: (val: V) => unknown; name: I }[] = []
 
   constructor(
@@ -130,17 +130,34 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   // @ts-ignore
   override async deleteMany(keys: K[]) {
     return this.locker(async () => {
-      const oldsVals = await this.getMany(keys)
+      const values = await this.getMany(keys)
+      const indexToPrimaryKey: { indexKey: string; primaryKey: K }[] = []
       for (const { field, map, name } of this.indexes) {
         let i = 0
         for (const key of keys) {
-          if (oldsVals[i] != null) {
-            await this.deleteFromIndex(key, name, field ? oldsVals[i]![field] : map!(oldsVals[i]!))
+          if (values[i] != null) {
+            indexToPrimaryKey.push({
+              indexKey: `$secondary-index:${name}:${field ? values[i]![field] : map!(values[i]!)}`,
+              primaryKey: key,
+            })
           }
           i++
         }
       }
-      return super.deleteMany(keys.map(k => String(k)))
+      const primaryKeys = await super.getMany<K[]>(indexToPrimaryKey.map(({ indexKey: key }) => key))
+      const newIndexes: { key: string; value: K[] }[] = []
+      let i = 0
+      for (const { indexKey: key, primaryKey } of indexToPrimaryKey) {
+        if (primaryKeys[i] != null) {
+          newIndexes.push({ key, value: primaryKeys[i]!.filter(k => k !== primaryKey) })
+        }
+        i++
+      }
+      // TODO setMany
+      for (const { key, value } of newIndexes) {
+        await super.set(key, value)
+      }
+      return await super.deleteMany(keys.map(k => String(k)))
     })
   }
 
