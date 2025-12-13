@@ -14,6 +14,11 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       locker?: <T>(cb: () => T) => Promise<T>
     }
   ) {
+    for (const { field, map, name } of options?.indexes ?? []) {
+      if (field == null && map == null) {
+        throw new Error(`On index "${name}" need to setup 'field' or 'map'`)
+      }
+    }
     super(keyvOptions)
     if (options?.locker) {
       this.locker = cb => {
@@ -63,9 +68,6 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       const oldVal = await this.get(key)
       const newVal = value as unknown as V
       for (const { field, filter, map, name } of this.indexes) {
-        if (field == null && map == null) {
-          continue
-        }
         if (oldVal != null) {
           await this.deleteFromIndex(key, name, field ? oldVal[field] : map!(oldVal))
         }
@@ -92,9 +94,6 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
         const oldVal = await this.get(key)
         const newVal = value as unknown as V
         for (const { field, filter, map, name } of this.indexes) {
-          if (field == null && map == null) {
-            continue
-          }
           if (oldVal != null) {
             await this.deleteFromIndex(key, name, field ? oldVal[field] : map!(oldVal))
           }
@@ -121,9 +120,6 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       const oldVal = await this.get(key)
       if (oldVal != null) {
         for (const { field, map, name } of this.indexes) {
-          if (field == null && map == null) {
-            continue
-          }
           await this.deleteFromIndex(key, name, field ? oldVal[field] : map!(oldVal))
         }
       }
@@ -138,9 +134,6 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       for (const { field, map, name } of this.indexes) {
         let i = 0
         for (const key of keys) {
-          if (field == null && map == null) {
-            continue
-          }
           if (oldsVals[i] != null) {
             await this.deleteFromIndex(key, name, field ? oldsVals[i]![field] : map!(oldsVals[i]!))
           }

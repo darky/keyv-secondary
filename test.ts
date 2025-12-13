@@ -873,3 +873,26 @@ test('should work with multiple indexes that use map function', async () => {
     { age: 17, firstName: 'Zinaida', lastName: 'Petrovna' },
   ])
 })
+
+test('should fail when index has no field or map', async () => {
+  assert.throws(
+    () => {
+      new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+        {},
+        {
+          indexes: [
+            {
+              filter() {
+                return true
+              },
+              name: 'byAge',
+            },
+          ],
+        }
+      )
+    },
+    {
+      message: "On index \"byAge\" need to setup 'field' or 'map'",
+    }
+  )
+})
