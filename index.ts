@@ -64,10 +64,10 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
 
   // @ts-ignore
   override async set(key: K, value: V, ttl?: number) {
-    if (String(key).match(/\$secondary\-index/)) {
-      return false
-    }
     return this.locker(async () => {
+      if (String(key).match(/\$secondary\-index/)) {
+        return await super.set(String(key), value, ttl)
+      }
       const oldVal = await this.get(key)
       const newVal = value as unknown as V
       for (const { field, filter, map, name } of this.indexes) {
@@ -93,7 +93,20 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
     }[]
   ) {
     const entitiesToSet = entities.filter(({ key }) => !String(key).match(/\$secondary\-index/))
+    const entitiesToNativeSet = entities
+      .filter(({ key }) => String(key).match(/\$secondary\-index/))
+      .map(({ key, value, ttl }) => ({
+        key: String(key),
+        value,
+        ttl: ttl as number,
+      }))
     return this.locker(async () => {
+      if (entitiesToNativeSet.length) {
+        await super.setMany(entitiesToNativeSet)
+      }
+      if (!entitiesToSet.length) {
+        return []
+      }
       for (const { key, value } of entitiesToSet) {
         const oldVal = await this.get(key)
         const newVal = value as unknown as V

@@ -897,7 +897,7 @@ test('should fail when index has no field or map', async () => {
   )
 })
 
-test('should not allow setting keys that match $secondary-index pattern', async () => {
+test('should bypass to native set keys that match $secondary-index pattern', async () => {
   const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
     {},
     {
@@ -914,12 +914,19 @@ test('should not allow setting keys that match $secondary-index pattern', async 
   )
 
   const result = await kv.set('$secondary-index:byAge:30', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
-  assert.strictEqual(result, false)
+  assert.strictEqual(result, true)
 
-  assert.strictEqual(await kv.get('$secondary-index:byAge:30'), undefined)
+  assert.deepStrictEqual(await kv.get('$secondary-index:byAge:30'), {
+    age: 30,
+    firstName: 'Galina',
+    lastName: 'Ivanova',
+  })
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:30', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+  ])
 })
 
-test('should not allow setting many keys that match $secondary-index pattern', async () => {
+test('should bypass to native setMany keys that match $secondary-index pattern', async () => {
   const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
     {},
     {
@@ -941,10 +948,102 @@ test('should not allow setting many keys that match $secondary-index pattern', a
     { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
   ])
 
-  assert.strictEqual(await kv.get('$secondary-index:byAge:18'), undefined)
+  assert.deepStrictEqual(await kv.get('$secondary-index:byAge:18'), {
+    age: 30,
+    firstName: 'Zinaida',
+    lastName: 'Petrovna',
+  })
 
   assert.deepStrictEqual(await kv.get('1'), { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
   assert.deepStrictEqual(await kv.get('3'), { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
 
+  assert.deepStrictEqual(Array.from(kv.store), [
+    ['keyv:$secondary-index:byAge:18', '{"value":{"age":30,"firstName":"Zinaida","lastName":"Petrovna"}}'],
+    ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
+    ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
+  ])
+})
+
+test('should handle setMany with only native set keys (entitiesToSet empty, entitiesToNativeSet not empty)', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([
+    { key: '$secondary-index:byAge:30', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '$secondary-index:byAge:59', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+  ])
+
+  assert.deepStrictEqual(await kv.get('$secondary-index:byAge:30'), {
+    age: 30,
+    firstName: 'Galina',
+    lastName: 'Ivanova',
+  })
+  assert.deepStrictEqual(await kv.get('$secondary-index:byAge:59'), {
+    age: 59,
+    firstName: 'Zinaida',
+    lastName: 'Petrovna',
+  })
+})
+
+test('should handle setMany with only regular keys (entitiesToSet not empty, entitiesToNativeSet empty)', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '2', value: { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' } },
+  ])
+
+  assert.deepStrictEqual(await kv.get('1'), { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  assert.deepStrictEqual(await kv.get('2'), { age: 59, firstName: 'Zinaida', lastName: 'Petrovna' })
+
   assert.deepStrictEqual(await kv.getByIndex('byAge', 30), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+  assert.deepStrictEqual(await kv.getByIndex('byAge', 59), [{ age: 59, firstName: 'Zinaida', lastName: 'Petrovna' }])
+})
+
+test('should handle setMany with no keys (entitiesToSet empty and entitiesToNativeSet empty)', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([])
+
+  assert.deepStrictEqual(Array.from(kv.store), [])
 })
