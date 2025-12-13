@@ -896,3 +896,55 @@ test('should fail when index has no field or map', async () => {
     }
   )
 })
+
+test('should not allow setting keys that match $secondary-index pattern', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+      ],
+    }
+  )
+
+  const result = await kv.set('$secondary-index:byAge:30', { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  assert.strictEqual(result, false)
+
+  assert.strictEqual(await kv.get('$secondary-index:byAge:30'), undefined)
+})
+
+test('should not allow setting many keys that match $secondary-index pattern', async () => {
+  const kv = new KeyvSecondary<string, { age: number; firstName: string; lastName: string }, 'byAge'>(
+    {},
+    {
+      indexes: [
+        {
+          field: 'age',
+          filter() {
+            return true
+          },
+          name: 'byAge',
+        },
+      ],
+    }
+  )
+
+  await kv.setMany([
+    { key: '1', value: { age: 30, firstName: 'Galina', lastName: 'Ivanova' } },
+    { key: '$secondary-index:byAge:18', value: { age: 30, firstName: 'Zinaida', lastName: 'Petrovna' } },
+    { key: '3', value: { age: 17, firstName: 'Stepan', lastName: 'Lukov' } },
+  ])
+
+  assert.strictEqual(await kv.get('$secondary-index:byAge:18'), undefined)
+
+  assert.deepStrictEqual(await kv.get('1'), { age: 30, firstName: 'Galina', lastName: 'Ivanova' })
+  assert.deepStrictEqual(await kv.get('3'), { age: 17, firstName: 'Stepan', lastName: 'Lukov' })
+
+  assert.deepStrictEqual(await kv.getByIndex('byAge', 30), [{ age: 30, firstName: 'Galina', lastName: 'Ivanova' }])
+})
