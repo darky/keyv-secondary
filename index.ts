@@ -157,10 +157,7 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
         }
         i++
       }
-      // TODO setMany
-      for (const { key, value } of newIndexes) {
-        await super.set(key, value)
-      }
+      await super.setMany(newIndexes)
       return await super.deleteMany(keys.map(k => String(k)))
     })
   }
