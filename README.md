@@ -83,3 +83,18 @@ const kv = new KeyvSecondary<Id, Person, Indexes>(
 ```
 
 By default, if no custom `locker` is provided, the internal `p-queue` will be used.
+
+## Index generation by field example for Postgres
+
+```sql
+select
+  'keyv:$secondary-index:byCountry:'
+    || (value->'value'->>'country')::text as key,
+  jsonb_build_object(
+    'value',
+    array_agg(trim('keyv:' from key)::int)
+  ) as value
+from keyv_user 
+where not key like '%$secondary-index%'
+group by value->'value'->>'country'
+```
