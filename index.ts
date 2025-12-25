@@ -148,29 +148,28 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
   override async deleteMany(keys: K[]) {
     return this.locker(async () => {
       const values = await this.getMany(keys)
-      const indexToPrimaryKey: { indexKey: string; primaryKey: K }[] = []
-      for (const { field, map, name } of this.indexes) {
-        let i = 0
-        for (const key of keys) {
-          if (values[i] != null) {
-            indexToPrimaryKey.push({
-              indexKey: `$secondary-index:${name}:${field ? values[i]![field] : map!(values[i]!)}`,
-              primaryKey: key,
-            })
-          }
-          i++
-        }
-      }
-      const primaryKeys = await super.getMany<K[]>(indexToPrimaryKey.map(({ indexKey: key }) => key))
-      const newIndexes: { key: string; value: K[] }[] = []
-      let i = 0
-      for (const { indexKey: key, primaryKey } of indexToPrimaryKey) {
-        if (primaryKeys[i] != null) {
-          newIndexes.push({ key, value: primaryKeys[i]!.filter(k => k !== primaryKey) })
-        }
-        i++
-      }
-      await super.setMany(newIndexes)
+      const secondaryIndexWithoutKey = this.indexes.flatMap(({ field, map, name }) => {
+        return keys.flatMap((primaryKeyForRemove, i) => {
+          return values[i] == null
+            ? []
+            : {
+                primaryKeyForRemove,
+                secondaryIndexKey: `$secondary-index:${name}:${field ? values[i][field] : map!(values[i])}`,
+              }
+        })
+      })
+      const secondaryIndexValues = await super.getMany<K[]>(
+        secondaryIndexWithoutKey.map(({ secondaryIndexKey }) => secondaryIndexKey)
+      )
+      const newSecondaryIndexes = secondaryIndexWithoutKey.flatMap(({ primaryKeyForRemove, secondaryIndexKey }, i) =>
+        secondaryIndexValues[i] == null
+          ? []
+          : {
+              key: secondaryIndexKey,
+              value: secondaryIndexValues[i].filter(k => k !== primaryKeyForRemove),
+            }
+      )
+      await super.setMany(newSecondaryIndexes)
       return await super.deleteMany(keys.map(k => String(k)))
     })
   }
