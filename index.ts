@@ -92,15 +92,15 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       ttl?: number
     }[]
   ) {
-    const entitiesToSet = entities.filter(({ key }) => !String(key).match(/\$secondary\-index/))
-    const entitiesToNativeSet = entities
-      .filter(({ key }) => String(key).match(/\$secondary\-index/))
-      .map(({ key, value, ttl }) => ({
-        key: String(key),
-        value,
-        ttl: ttl as number,
-      }))
     return this.locker(async () => {
+      const entitiesToSet = entities.filter(({ key }) => !String(key).match(/\$secondary\-index/))
+      const entitiesToNativeSet = entities
+        .filter(({ key }) => String(key).match(/\$secondary\-index/))
+        .map(({ key, value, ttl }) => ({
+          key: String(key),
+          value,
+          ttl: ttl as number,
+        }))
       if (entitiesToNativeSet.length) {
         await super.setMany(entitiesToNativeSet)
       }
