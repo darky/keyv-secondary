@@ -1,4 +1,4 @@
-import { Keyv, type KeyvOptions } from 'keyv'
+import { Keyv, type StoredDataNoRaw, type KeyvOptions } from 'keyv'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import PQueue from 'p-queue'
 
@@ -107,19 +107,52 @@ export class KeyvSecondary<K, V, I extends string> extends Keyv<V> {
       if (!entitiesToSet.length) {
         return []
       }
-      for (const { key, value } of entitiesToSet) {
-        const oldVal = await this.get(key)
-        const newVal = value as unknown as V
-        for (const { field, filter, map, name } of this.indexes) {
-          if (oldVal != null) {
-            await this.deleteFromIndex(key, name, field ? oldVal[field] : map!(oldVal))
-          }
-          if (filter(newVal)) {
-            const val = field ? newVal[field] : map!(newVal)
-            const keys = (await this.get(`$secondary-index:${name}:${val}` as K)) as K[] | void
-            await super.set(`$secondary-index:${name}:${val}`, [...new Set(keys ?? []).add(key)])
-          }
-        }
+      const oldVals = await this.getMany(entitiesToSet.map(({ key }) => key))
+      const newVals = entitiesToSet.map(({ value }) => value)
+      for (const { field, filter, map, name } of this.indexes) {
+        const oldKeys = (await this.getMany(
+          oldVals.map(v => (v ? `$secondary-index:${name}:${field ? v[field] : map!(v)}` : '$non-existing-key') as K)
+        )) as StoredDataNoRaw<K[]>[]
+        await super.setMany(
+          [
+            ...entitiesToSet
+              .reduce(
+                (acc, { key }, i) =>
+                  oldVals[i]
+                    ? new Map(acc).set(
+                        `$secondary-index:${name}:${field ? oldVals[i][field] : map!(oldVals[i])}`,
+                        (
+                          acc.get(`$secondary-index:${name}:${field ? oldVals[i][field] : map!(oldVals[i])}`) ??
+                          oldKeys[i] ??
+                          []
+                        ).filter(k => k !== key)
+                      )
+                    : acc,
+                new Map<string, K[]>()
+              )
+              .entries(),
+          ].map(([key, value]) => ({ key, value }))
+        )
+        const newKeys = (await this.getMany(
+          newVals.map(v => `$secondary-index:${name}:${field ? v[field] : map!(v)}` as K)
+        )) as StoredDataNoRaw<K[]>[]
+        await super.setMany(
+          [
+            ...entitiesToSet
+              .reduce(
+                (acc, { key, value }, i) =>
+                  filter(value)
+                    ? new Map(acc).set(`$secondary-index:${name}:${field ? value[field] : map!(value)}`, [
+                        ...new Set(
+                          acc.get(`$secondary-index:${name}:${field ? value[field] : map!(value)}`) ?? newKeys[i] ?? []
+                        ).add(key),
+                      ])
+                    : acc,
+                new Map<string, K[]>()
+              )
+              .entries(),
+          ].map(([key, value]) => ({ key, value }))
+        )
       }
       return super.setMany(
         entitiesToSet.map(({ key, value, ttl }) => ({

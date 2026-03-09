@@ -364,10 +364,10 @@ test('should construct KeyvSecondary correctly with setMany', async () => {
 
   assert.deepStrictEqual(Array.from(kv.store), [
     ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
-    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
     ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
-    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
     ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
     ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
     ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
     ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
@@ -409,10 +409,10 @@ test('should construct KeyvSecondary correctly with setMany without locker', asy
 
   assert.deepStrictEqual(Array.from(kv.store), [
     ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
-    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
     ['keyv:$secondary-index:byAge:59', '{"value":["2","4"]}'],
-    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
     ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":["2"]}'],
     ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
     ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
     ['keyv:2', '{"value":{"age":59,"firstName":"Zinaida","lastName":"Petrovna"}}'],
@@ -459,18 +459,18 @@ test('should properly setMany', async () => {
 
   assert.deepStrictEqual(Array.from(kv.store), [
     ['keyv:$secondary-index:byAge:30', '{"value":["1"]}'],
-    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
     ['keyv:$secondary-index:byAge:59', '{"value":["4"]}'],
-    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":[]}'],
     ['keyv:$secondary-index:byAge:17', '{"value":["3"]}'],
+    ['keyv:$secondary-index:byLastName:Ivanova', '{"value":["1"]}'],
+    ['keyv:$secondary-index:byLastName:Petrovna', '{"value":[]}'],
     ['keyv:$secondary-index:byLastName:Lukov', '{"value":["3","4"]}'],
     ['keyv:1', '{"value":{"age":30,"firstName":"Galina","lastName":"Ivanova"}}'],
     ['keyv:2', '{"value":{"age":70,"firstName":"Ivan","lastName":"Sidorov"}}'],
     ['keyv:3', '{"value":{"age":17,"firstName":"Stepan","lastName":"Lukov"}}'],
     ['keyv:4', '{"value":{"age":59,"firstName":"Ibragim","lastName":"Lukov"}}'],
     ['keyv:$secondary-index:byAge:70', '{"value":["2"]}'],
-    ['keyv:$secondary-index:byLastName:Sidorov', '{"value":["2"]}'],
     ['keyv:$secondary-index:byAge:33', '{"value":["5"]}'],
+    ['keyv:$secondary-index:byLastName:Sidorov', '{"value":["2"]}'],
     ['keyv:$secondary-index:byLastName:Nabiulin', '{"value":["5"]}'],
     ['keyv:5', '{"value":{"age":33,"firstName":"Dmitry","lastName":"Nabiulin"}}'],
   ])
